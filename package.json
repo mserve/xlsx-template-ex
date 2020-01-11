@@ -22,8 +22,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "exceljs": "^1.13.0",
-    "lodash": "^4.17.11",
+    "exceljs": "^3.5.0",
+    "lodash": "^4.17.15",
     "moment": "^2.24.0"
   },
   "devDependencies": {
