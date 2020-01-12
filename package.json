@@ -1,20 +1,20 @@
 {
-  "name": "xlsx-template-ex",
+  "name": "xlsx-template-officejs",
   "version": "0.2.8",
-  "description": "The template engine for generate xlsx documents",
+  "description": "The template engine for updating Excel documents",
   "private": false,
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "author": "Konstantin Polyntsov <optimistex@gmail.com>",
+  "author": "Martin Schleyer <schleyer@oszimt.de.com>",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com:optimistex/xlsx-template-ex.git"
+    "url": "git+ssh://git@github.com:mserve/xlsx-template-officejs.git"
   },
   "bugs": {
-    "url": "https://github.com/optimistex/xlsx-template-ex/issues"
+    "url": "https://github.com/mserve/xlsx-template-officejs/issues"
   },
-  "homepage": "https://github.com/optimistex/xlsx-template-ex#readme",
+  "homepage": "https://github.com/mserve/xlsx-template-officejs#readme",
   "scripts": {
     "start": "npm run build && node ./dist/example.js",
     "start-dev": "node $NODE_DEBUG_OPTION -r ts-node/register ./src/example.ts dev",
@@ -22,7 +22,6 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "exceljs": "^3.5.0",
     "lodash": "^4.17.15",
     "moment": "^2.24.0"
   },
@@ -30,9 +29,16 @@
     "@types/node": "^10.14.10",
     "nodemon": "^1.19.1",
     "ts-node": "^7.0.1",
-    "typescript": "^3.5.2"
+    "typescript": "^3.5.2",
+    "@types/office-js": "^1.0.37",
+    "@types/office-runtime": "^1.0.8"
   },
   "contributors": [
+    {
+      "name": "Martin Schleyer",
+      "email": "github@mserve.com",
+      "url": "https://github.com/mserve"
+    },
     {
       "name": "Konstantin Polyntsov",
       "email": "optimistex@gmail.com",

@@ -1,14 +1,15 @@
-import {Cell} from "exceljs";
-
+// Excel Cell
+/*
 export class CellRange {
   constructor(public top: number, public left: number, public bottom: number, public right: number) {
   }
 
-  public static createFromCells(cellTL: Cell, cellBR: Cell): CellRange {
-    return new CellRange(+cellTL.row, +cellTL.col, +cellBR.row, +cellBR.col);
+  public static createFromCells(cellTL: Excel.Range, cellBR: Excel.Range): CellRange {
+    return new CellRange(+cellTL.rowIndex, +cellTL.columnIndex, +cellBR.rowIndex, +cellBR.columnIndex);
   }
 
   /** Just for clone */
+  /*
   public static createFromRange(range: CellRange): CellRange {
     return new CellRange(range.top, range.left, range.bottom, range.right);
   }
@@ -24,7 +25,8 @@ export class CellRange {
   public get countColumns(): number {
     return this.right - this.left + 1;
   }
-
+*/
+  /*
   public move(dRow: number, dCol: number): void {
     this.top += dRow;
     this.bottom += dRow;
@@ -32,6 +34,7 @@ export class CellRange {
     this.left += dCol;
     this.right += dCol;
   }
+  */
 
   // public grow(range: CellRange): void {
   //   this.top = Math.min(this.top, range.top);
@@ -39,4 +42,6 @@ export class CellRange {
   //   this.bottom = Math.max(this.bottom, range.bottom);
   //   this.right = Math.max(this.right, range.right);
   // }
+/*
 }
+*/

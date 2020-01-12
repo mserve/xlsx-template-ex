@@ -1,9 +1,10 @@
 import * as fs from 'fs';
 import * as moment from 'moment';
-import { CellRange } from './cell-range';
+//import { CellRange } from './cell-range';
 import { TemplateExpression, TemplatePipe } from './template-expression';
 import { WorkSheetHelper } from './worksheet-helper';
-import { Cell } from "exceljs";
+
+// Excel Cell?
 
 export class TemplateEngine {
   private readonly regExpBlocks: RegExp = /\[\[.+?]]/g;
@@ -13,24 +14,26 @@ export class TemplateEngine {
   }
 
   public execute(): void {
-    this.processBlocks(this.wsh.getSheetDimension(), this.data);
-    this.processValues(this.wsh.getSheetDimension(), this.data);
+    this.processBlocks(this.wsh.getUsedRange(), this.data);
+    this.processValues(this.wsh.getUsedRange(), this.data);
   }
 
-  private processBlocks(cellRange: CellRange, data: any): CellRange {
+  private processBlocks(cellRange: Excel.Range, data: any): Excel.Range {
+    /* As this is a "real" range, it is always valid
     if (!cellRange.valid) {
       console.log(
-        'xlsx-template-ex: Process blocks failed.',
+        'xlsx-template-officejs: Process blocks failed.',
         'The cell range is invalid and will be skipped:',
-        this.wsh.sheetName, cellRange
+        this.wsh.name, cellRange
       );
       return cellRange;
     }
+    */
     let restart;
     do {
       restart = false;
-      this.wsh.eachCell(cellRange, (cell: Cell) => {
-        let cVal = cell.value;
+      this.wsh.eachCell(cellRange, (cell: Excel.Range) => {
+        let cVal = cell.values[0][0];
         if (typeof cVal !== "string") {
           return null;
         }
@@ -42,7 +45,7 @@ export class TemplateEngine {
         matches.forEach((rawExpression: string) => {
           const tplExp = new TemplateExpression(rawExpression, rawExpression.slice(2, -2));
           cVal = (cVal as string).replace(tplExp.rawExpression, '');
-          cell.value = cVal;
+          cell.values[0][0] = cVal;
 
           let resultData = data[tplExp.valueName];
           if (!data[tplExp.valueName] && this.data[tplExp.valueName]) {
@@ -59,17 +62,20 @@ export class TemplateEngine {
     return cellRange;
   }
 
-  private processValues(cellRange: CellRange, data: any): void {
+  private processValues(cellRange: Excel.Range, data: any): void {
+    /*
     if (!cellRange.valid) {
       console.log(
-        'xlsx-template-ex: Process values failed.',
+        'xlsx-template-officejs: Process values failed.',
         'The cell range is invalid and will be skipped:',
         this.wsh.sheetName, cellRange
       );
       return;
     }
-    this.wsh.eachCell(cellRange, (cell: Cell) => {
-      let cVal = cell.value;
+    */
+
+    this.wsh.eachCell(cellRange, (cell: Excel.Range) => {
+      let cVal = cell.values[0][0];
       if (typeof cVal !== "string") {
         return;
       }
@@ -88,11 +94,11 @@ export class TemplateEngine {
         resultValue = this.processValuePipes(cell, tplExp.pipes, resultValue);
         cVal = resultValue;
       });
-      cell.value = cVal;
+      cell.values[0][0] = cVal;
     });
   }
 
-  private processValuePipes(cell: Cell, pipes: TemplatePipe[], value: any): string {
+  private processValuePipes(cell: Excel.Range, pipes: TemplatePipe[], value: any): string {
     try {
       pipes.forEach((pipe: TemplatePipe) => {
         switch (pipe.pipeName) {
@@ -100,10 +106,11 @@ export class TemplateEngine {
             // value = this.valuePipeDate(value, ...pipe.pipeParameters);
             value = this.valuePipeDate(value);
             break;
-          case 'image':
+          /*case 'image':
             // value = this.valuePipeImage(cell, value, ...pipe.pipeParameters);
             value = this.valuePipeImage(cell, value);
             break;
+            */
           case 'find':
             value = this.valuePipeFind(value, ...pipe.pipeParameters);
             break;
@@ -120,46 +127,45 @@ export class TemplateEngine {
             value = this.valuePipeNumber(value);
             break;
           default:
-            value = 'xlsx-template-ex: The value pipe not found:' + pipe.pipeName;
+            value = 'xlsx-template-officejs: value of pipe not found:' + pipe.pipeName;
             console.warn(value);
         }
       });
     } catch (error) {
-      console.error('xlsx-template-ex: Error on process values of pipes', error);
-      return 'xlsx-template-ex: Error on process values of pipes. Look for more details in a console.';
+      console.error('xlsx-template-officejs: Error on process values of pipes', error);
+      return 'xlsx-template-officejs: Error on process values of pipes. Look for more details in a console.';
     }
 
     return value || '';
   }
 
-  private processBlockPipes(cellRange: CellRange, cell: Cell, pipes: TemplatePipe[], data: any): CellRange {
+  private processBlockPipes(cellRange: Excel.Range, cell: Excel.Range, pipes: TemplatePipe[], data: any): Excel.Range {
     // console.log('bp', pipes, data);
-    const newRange = CellRange.createFromRange(cellRange);
+    //ms const newRange = CellRange.createFromRange(cellRange);
     let insertedRows;
     try {
       pipes.forEach((pipe: TemplatePipe) => {
         switch (pipe.pipeName) {
           case 'repeat-rows':
             // insertedRows = this.blockPipeRepeatRows.apply(this, [cell, data].concat(pipe.pipeParameters));
-            insertedRows = this.blockPipeRepeatRows(cell, data, ...pipe.pipeParameters);
-            newRange.bottom += insertedRows;
+            insertedRows += this.blockPipeRepeatRows(cell, data, ...pipe.pipeParameters);
+
             break;
           case 'tile':
-            insertedRows = this.blockPipeTile(cell, data, ...pipe.pipeParameters);
-            newRange.bottom += insertedRows;
+            insertedRows += this.blockPipeTile(cell, data, ...pipe.pipeParameters);
             break;
           case 'filter':
             data = this.blockPipeFilter(data, ...pipe.pipeParameters);
             break;
           default:
-            console.warn('xlsx-template-ex: The block pipe not found:', pipe.pipeName, pipe.pipeParameters);
+            console.warn('xlsx-template-officejs: Block pipe not found:', pipe.pipeName, pipe.pipeParameters);
         }
       });
     } catch (error) {
-      console.error('xlsx-template-ex: Error on process a block of pipes', error);
-      cell.value = 'xlsx-template-ex: Error on process a block of pipes. Look for more details in a console.';
+      console.error('xlsx-template-officejs: Error on process a block of pipes', error);
+      cell.values[0][0] = 'xlsx-template-officejs: Error on process a block of pipes. Look for more details in a console.';
     }
-    return newRange;
+    return cellRange.getResizedRange(insertedRows, 0);
   }
 
   private valuePipeNumber(value?: any): any {
@@ -184,6 +190,7 @@ export class TemplateEngine {
     return date ? moment(new Date(date)).format('DD.MM.YYYY HH:mm:ss') : '';
   }
 
+  /*
   private valuePipeImage(cell: Cell, fileName: string): string {
     if (fs.existsSync(fileName)) {
       this.wsh.addImage(fileName, cell);
@@ -191,6 +198,7 @@ export class TemplateEngine {
     }
     return ``;
   }
+  */
 
   /** Find object in array by value of a property */
   private valuePipeFind(arrayData: any[], propertyName?: string, propertyValue?: string): any | null {
@@ -222,33 +230,37 @@ export class TemplateEngine {
   }
 
   /** @return {number} count of inserted rows */
-  blockPipeRepeatRows(cell: Cell, dataArray: any[], countRows?: number | string): number {
+  blockPipeRepeatRows(cell: Excel.Range, dataArray: any[], countRows?: number | string): number {
     if (!Array.isArray(dataArray) || !dataArray.length) {
       console.warn('TemplateEngine.blockPipeRepeatRows', cell.address,
         'The data must be not empty array, but got:', dataArray
       );
       return 0;
     }
-    countRows = +countRows > 0 ? +countRows : 1;
-    const startRow = +cell.row;
-    const endRow = startRow + countRows - 1;
+    let countRowsNum = +countRows > 0 ? +countRows : 1;
+    const startRow = +cell.rowIndex;
+    const endRow = startRow + countRowsNum - 1;
     if (dataArray.length > 1) {
       this.wsh.cloneRows(startRow, endRow, dataArray.length - 1);
     }
 
-    const wsDimension = this.wsh.getSheetDimension();
-    let sectionRange = new CellRange(startRow, wsDimension.left, endRow, wsDimension.right);
+    const wsDimension = this.wsh.getUsedRange();
+
+
+    // Range contains all data in those rose
+    let sectionRange = this.wsh.getRange(startRow, wsDimension.columnIndex, endRow, wsDimension.columnIndex + wsDimension.columnCount);
 
     dataArray.forEach(data => {
       sectionRange = this.processBlocks(sectionRange, data);
       this.processValues(sectionRange, data);
-      sectionRange.move(+countRows, 0);
+      // Move range down
+      sectionRange = sectionRange.getOffsetRange(countRowsNum, 0);
     });
-    return (dataArray.length - 1) * countRows;
+    return (dataArray.length - 1) * countRowsNum;
   }
 
   /** @return {number} count of inserted rows */
-  private blockPipeTile(cell: Cell, dataArray: any[], blockRows?: number | string, blockColumns?: number | string,
+  private blockPipeTile(cell: Excel.Range, dataArray: any[], blockRows?: number | string, blockColumns?: number | string,
     tileColumns?: number | string): number {
     // return;
     if (!Array.isArray(dataArray) || !dataArray.length) {
@@ -262,20 +274,20 @@ export class TemplateEngine {
     blockColumns = +blockColumns > 0 ? +blockColumns : 1;
     tileColumns = +tileColumns > 0 ? +tileColumns : 1;
 
-    const blockRange = new CellRange(
-      +cell.row, +cell.col, +cell.row + blockRows - 1, +cell.col + blockColumns - 1
+    let blockRange = this.wsh.getRange(
+      +cell.rowIndex, +cell.columnIndex, +cell.rowIndex + blockRows - 1, +cell.columnIndex + blockColumns - 1
     );
+
     const cloneRowsCount = Math.ceil(dataArray.length / tileColumns) - 1;
     if (dataArray.length > tileColumns) {
-      this.wsh.cloneRows(blockRange.top, blockRange.bottom, cloneRowsCount);
+      this.wsh.cloneRows(blockRange.rowIndex, blockRange.rowIndex+blockRange.rowCount, cloneRowsCount);
     }
 
-    let tileColumn = 1, tileRange = CellRange.createFromRange(blockRange);
+    let tileColumn = 1, tileRange = blockRange.getOffsetRange(0,0);
     dataArray.forEach((data, idx: number, array: any[]) => {
       // Prepare the next tile
       if ((idx !== array.length - 1) && (tileColumn + 1 <= tileColumns)) {
-        const nextTileRange = CellRange.createFromRange(tileRange);
-        nextTileRange.move(0, tileRange.countColumns);
+        const nextTileRange = tileRange.getOffsetRange(0, tileRange.columnCount);
         this.wsh.copyCellRange(tileRange, nextTileRange);
       }
 
@@ -286,15 +298,15 @@ export class TemplateEngine {
       if (idx !== array.length - 1) {
         tileColumn++;
         if (tileColumn <= tileColumns) {
-          tileRange.move(0, tileRange.countColumns);
+          tileRange = tileRange.getOffsetRange(0, tileRange.columnIndex);
         } else {
           tileColumn = 1;
-          blockRange.move(tileRange.countRows, 0);
-          tileRange = CellRange.createFromRange(blockRange);
+          blockRange = tileRange.getOffsetRange(tileRange.columnCount, 0);
+          tileRange = blockRange.getOffsetRange(0 ,0);
         }
       }
     });
 
-    return cloneRowsCount * blockRange.countRows;
+    return cloneRowsCount * blockRange.rowCount;
   }
 }
