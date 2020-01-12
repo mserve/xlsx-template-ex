@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+
 // import {Cell, Row, ValueType, Workbook, Worksheet} from "exceljs";
 // import { CellRange } from "./cell-range";
 
@@ -15,13 +16,22 @@ export type iterateCells = (cell: Excel.Range) => void | false;
 
 export class WorkSheetHelper {
 
-  constructor(private worksheet: Excel.Worksheet) {
+  constructor(private worksheet: Excel.Worksheet, private context: Excel.RequestContext) {
+    worksheet.load('name');
+    this.context.sync().then(() => {
+      console.log('WorkSheetHelper ready for sheet ' + worksheet.name);
+    });
+    console.log('After then');
   }
 
 
 
   get sheetName() {
     return this.worksheet.name;
+  }
+
+  public async syncContext() {
+    await this.context.sync();
   }
 
   /*
@@ -36,7 +46,7 @@ export class WorkSheetHelper {
       });
     } else {
       this.worksheet.addImage(imgId, {
-        tl: {col: +cell.col - 0.99999, row: +cell.row - 0.99999},
+        tl: {col: +cell.col - 0.99999, row: +cell.row - 0.99999}, 
         br: {col: +cell.col, row: +cell.row},
       });
     }
@@ -44,19 +54,28 @@ export class WorkSheetHelper {
   */
 
   public getUsedRange() {
-    return this.worksheet.getUsedRangeOrNullObject();
+    console.debug('Starting getUsedRange');
+
+    let usedRange = this.worksheet.getUsedRangeOrNullObject();
+    if (!!usedRange) {
+      usedRange.load(['columnCount', 'rowCount', 'rowIndex', 'columnIndex', 'values']);
+      this.syncContext();
+    }
+    return usedRange;
   }
 
   public getRange(top: number, left: number, bottom: number, right: number) {
+    console.debug('Starting getUsedRange');
     return this.worksheet.getRangeByIndexes(top, left, bottom - top, right - left);
   }
-/*
-  public getSheetDimension(): CellRange {
-    const dm = this.worksheet.getUsedRange()
-    return new CellRange(dm.rowIndex, dm.columnIndex, dm.rowCount + dm.rowIndex, dm.columnCount + dm.columnIndex);
-  }
-*/
+  /*
+    public getSheetDimension(): CellRange {
+      const dm = this.worksheet.getUsedRange()
+      return new CellRange(dm.rowIndex, dm.columnIndex, dm.rowCount + dm.rowIndex, dm.columnCount + dm.columnIndex);
+    }
+  */
   public cloneRows(srcRowStart: number, srcRowEnd: number, countClones: number = 1): void {
+    console.debug('Starting cloneRows');
     const countRows = srcRowEnd - srcRowStart + 1;
     const dxRow = countRows * countClones;
     const lastRow = this.getUsedRange().getLastRow().rowIndex + dxRow;
@@ -64,7 +83,7 @@ export class WorkSheetHelper {
     // Move rows below   
     for (let rowSrcNumber = lastRow; rowSrcNumber > srcRowEnd; rowSrcNumber--) {
       const rowSrc = this.worksheet.getCell(rowSrcNumber, 1).getEntireRow();
-      const rowDest = this.worksheet.getCell(rowSrcNumber+dxRow, 1).getEntireRow();
+      const rowDest = this.worksheet.getCell(rowSrcNumber + dxRow, 1).getEntireRow();
       this.moveRow(rowSrc, rowDest);
     }
 
@@ -80,6 +99,8 @@ export class WorkSheetHelper {
 
   /* Copy cell range to another range having same dimension */
   public copyCellRange(rangeSrc: Excel.Range, rangeDest: Excel.Range): void {
+    console.debug('Starting copyCellRange');
+
     if (rangeSrc.rowCount !== rangeDest.rowCount || rangeSrc.columnCount !== rangeDest.columnCount) {
       console.warn('WorkSheetHelper.copyCellRange',
         'The cell ranges must have an equal size', rangeSrc, rangeDest
@@ -101,16 +122,30 @@ export class WorkSheetHelper {
 
   /** Iterate cells from the left of the top to the right of the bottom */
   public eachCell(cellRange: Excel.Range, callBack: iterateCells) {
-    for (let r = 0; r < cellRange.rowCount; r++) {
-      for (let c = 0; c < cellRange.columnCount; c++) {
-        const cell = cellRange.getCell(r, c);
-        if (cell) {
-          if (callBack(cell) === false) {
-            return;
+    console.debug('Starting eachCell');
+    try {
+      cellRange.load(['columnCount', 'rowCount']);
+    } catch (_e) {
+      console.error(' Loading silently failed');
+      console.error(_e);
+    }
+
+    console.debug('Ready for promise');
+    this.context.sync().then(() => {
+      console.debug(`Range size: ${cellRange.rowCount} /  ${cellRange.columnCount} `);
+      for (let r = 0; r < cellRange.rowCount; r++) {
+        for (let c = 0; c < cellRange.columnCount; c++) {
+          const cell = cellRange.getCell(r, c);
+          if (cell) {
+            if (callBack(cell) === false) {
+              return;
+            }
           }
         }
       }
-    }
+    }).catch(() => {
+      console.error('Failed to sync')
+    });
     /*
     for (let r = cellRange.top; r <= cellRange.bottom; r++) {
       const row = this.worksheet.findRow(r);
@@ -129,8 +164,9 @@ export class WorkSheetHelper {
 
   /** Iterate cells from the right of the bottom to the top of the left */
   public eachCellReverse(cellRange: Excel.Range, callBack: iterateCells) {
+    console.debug('Starting eachCellReverse');
     for (let r = cellRange.rowCount - 1; r >= 0; r--) {
-      for (let c = cellRange.columnCount - 1; c>= 0; c--) {
+      for (let c = cellRange.columnCount - 1; c >= 0; c--) {
         const cell = cellRange.getCell(r, c);
         if (cell) {
           if (callBack(cell) === false) {
@@ -169,13 +205,13 @@ private getMergeRange(cell: Cell): CellRange {
       return;
     rowDest.getEntireRow().values = rowSrc.getEntireRow().values;
   }
-
-  private copyCell(cellSrc: Excel.Range, cellDest: Excel.Range): void {
-    if (!(cellSrc.rowCount == 1 && cellDest.rowCount == 1 && cellSrc.columnCount == 1 && cellDest.columnCount == 1))
-      return;
-    cellDest.values = cellSrc.values;
-  }
-
+  /*
+    private copyCell(cellSrc: Excel.Range, cellDest: Excel.Range): void {
+      if (!(cellSrc.rowCount == 1 && cellDest.rowCount == 1 && cellSrc.columnCount == 1 && cellDest.columnCount == 1))
+        return;
+      cellDest.values = cellSrc.values;
+    }
+  */
   private clearRow(row: Excel.Range): void {
     row.clear(Excel.ClearApplyTo.all);
   }

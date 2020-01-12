@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as moment from 'moment';
 //import { CellRange } from './cell-range';
 import { TemplateExpression, TemplatePipe } from './template-expression';
@@ -11,14 +10,22 @@ export class TemplateEngine {
   private readonly regExpValues: RegExp = /{{.+?}}/g;
 
   constructor(private wsh: WorkSheetHelper, private data: any) {
+    console.log('TemplateEngine loaded with sheet ' + wsh.sheetName);
   }
-
-  public execute(): void {
-    this.processBlocks(this.wsh.getUsedRange(), this.data);
-    this.processValues(this.wsh.getUsedRange(), this.data);
+  
+  public async execute() {
+    console.log('Starting TemplateEngine with sheet ' + this.wsh.sheetName);
+    let usedRange = this.wsh.getUsedRange();
+    await this.wsh.syncContext();
+    this.processBlocks(usedRange, this.data);
+    usedRange = this.wsh.getUsedRange();
+    await this.wsh.syncContext();
+    this.processValues(usedRange, this.data);
+    console.log('TemplateEngine done for sheet ' + this.wsh.sheetName);
   }
 
   private processBlocks(cellRange: Excel.Range, data: any): Excel.Range {
+    console.debug('Starting processBlocks');
     /* As this is a "real" range, it is always valid
     if (!cellRange.valid) {
       console.log(
@@ -32,7 +39,8 @@ export class TemplateEngine {
     let restart;
     do {
       restart = false;
-      this.wsh.eachCell(cellRange, (cell: Excel.Range) => {
+      this.wsh.eachCell(cellRange, (cell: Excel.Range) => {        
+        console.debug('eachCell on one cell')        
         let cVal = cell.values[0][0];
         if (typeof cVal !== "string") {
           return null;
@@ -45,7 +53,7 @@ export class TemplateEngine {
         matches.forEach((rawExpression: string) => {
           const tplExp = new TemplateExpression(rawExpression, rawExpression.slice(2, -2));
           cVal = (cVal as string).replace(tplExp.rawExpression, '');
-          cell.values[0][0] = cVal;
+          cell.values = [[cVal]];
 
           let resultData = data[tplExp.valueName];
           if (!data[tplExp.valueName] && this.data[tplExp.valueName]) {
@@ -63,6 +71,7 @@ export class TemplateEngine {
   }
 
   private processValues(cellRange: Excel.Range, data: any): void {
+    console.debug('Starting processValues');
     /*
     if (!cellRange.valid) {
       console.log(
@@ -98,7 +107,8 @@ export class TemplateEngine {
     });
   }
 
-  private processValuePipes(cell: Excel.Range, pipes: TemplatePipe[], value: any): string {
+  private processValuePipes(_cell: Excel.Range, pipes: TemplatePipe[], value: any): string {
+    console.debug('Starting processValuePipes');
     try {
       pipes.forEach((pipe: TemplatePipe) => {
         switch (pipe.pipeName) {

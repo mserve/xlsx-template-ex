@@ -27,11 +27,12 @@
   },
   "devDependencies": {
     "@types/node": "^10.14.10",
+    "@types/office-js": "^1.0.37",
+    "@types/office-runtime": "^1.0.8",
+    "es6-promise": "^4.2.8",
     "nodemon": "^1.19.1",
     "ts-node": "^7.0.1",
-    "typescript": "^3.5.2",
-    "@types/office-js": "^1.0.37",
-    "@types/office-runtime": "^1.0.8"
+    "typescript": "^3.5.2"
   },
   "contributors": [
     {
